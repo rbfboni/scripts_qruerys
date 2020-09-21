@@ -1,0 +1,107 @@
+<@
+{
+ /// SCRIPT DE CHAMADA ///
+ ???                                                                                                  
+ 
+ /// QUERYS UTILIZADAS ///
+ EMBA_EP_AJUSTA_CLIEN
+ 
+ /// SCRIPTS UTILIZADOS /// 
+ RAJ_ESTILO_PG_TAHOMA
+ RAJ_COMBO_DATA
+ EMBA_BOTAO   
+ EMBA_CABECALHO
+ EMBA_R_AJUSTA_PRECO 
+}                
+@>
+<!DOCTYPE html>
+<html>
+<head lang="pt-br">
+ <meta http-equiv="X-UA-Compatible" content="IE=edge">
+ <@EXECUTA SCRIPT PRIVADA RAJ_ESTILO_PG_TAHOMA; END SCRIPT@>
+ <@EXECUTA SCRIPT PRIVADA RAJ_COMBO_DATA; END SCRIPT@> 
+ <style> 
+  <@EXECUTA SCRIPT PRIVADA EMBA_BOTAO; END SCRIPT@>
+  #divBusca { background-color:#C6E2FF; border:solid 2px #5F9EA0; border-radius:10px; width: 250px; height:32px; }   
+  .txtBusca { float:left; background-color: transparent; padding-left: 5px; font-size: 14px; color: #000080; border:none; height: 32px; width: 240px; } 
+  #divCombo { background-color:#C6E2FF; border:solid 2px #5F9EA0; border-radius:10px; width: 360px; height:32px; }   
+  .txtCombo { float: left; background-color: transparent; padding-left: 5px; font-size: 14px; color: #000080; border:none; height: 32px; width: 98%; -ms-touch-action: manipulation; touch-action: manipulation; cursor: pointer; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+  .txtCombo:focus { border-color: #66afe9; outline: 0; -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(102, 175, 233, .6); box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(102, 175, 233, .6); -ms-touch-action: manipulation; touch-action: manipulation; cursor: pointer; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; } 
+  .txtCombo::-moz-placeholder { color: #999; opacity: 1; }
+  .txtCombo:-ms-input-placeholder { color: #999; }
+  .txtCombo::-webkit-input-placeholder { color: #999; }
+  .txtCombo::-ms-expand { background-color: transparent; border: 0; }    
+ </style>
+</head>                                                   
+<body>                          
+<@                                                        
+  SET VARIAVEL ESTATICA TITULO = "FILTRO - Ajuste de Preços";
+  EXECUTA SCRIPT PRIVADA EMBA_CABECALHO;
+    TITULO=TITULO;
+    TAM=500;  
+    SEMESTILO="S";  
+  END SCRIPT     
+
+  OPEN QOBJ EMBA_EP_AJUSTA_CLIEN As QRCLIENTES;
+   ORDERBY=NOME,CODFAVOREC,SEQFAVFAT;
+  END QOBJ
+  SET VARIAVEL ESTATICA vOPT_GRUPOS = "<option value=''>* Todos</option>";
+  SET VARIAVEL ESTATICA vOPT_ENDERS = "<option value=''>* Todos</option>";
+  QRCLIENTES.First;
+  WHILE NOT QRCLIENTES.Eof DO
+    SET VARIAVEL ESTATICA vCODFAV = QRCLIENTES.Fields.CODFAVOREC.AsInteger;
+    SET VARIAVEL ESTATICA vOPT_GRUPOS = vOPT_GRUPOS +"<option value='"+ QRCLIENTES.Fields.CODFAVOREC.AsString +"'>"+ QRCLIENTES.Fields.NOME.AsString +"</option>";
+    WHILE ( ( vCODFAV = QRCLIENTES.Fields.CODFAVOREC.AsInteger ) AND NOT QRCLIENTES.Eof ) DO
+      IF ( QRCLIENTES.Fields.SEQFAVFAT.AsInteger > 0 ) THEN
+        SET VARIAVEL ESTATICA vOPT_ENDERS = vOPT_ENDERS +"<option value='"+ QRCLIENTES.Fields.CODFAVOREC.AsString +"_"+ QRCLIENTES.Fields.SEQFAVFAT.AsString +"'>"+ IF(( QRCLIENTES.Fields.APELIDO.AsString <> "" ), QRCLIENTES.Fields.APELIDO.AsString, QRCLIENTES.Fields.RAZAO.AsString ) +" - "+ QRCLIENTES.Fields.CIDADE.AsString +" - "+ QRCLIENTES.Fields.ESTADO.AsString +"</option>";
+      ENDIF                            
+    QRCLIENTES.Next;
+    ENDDO
+  ENDDO
+@>            
+<center>    
+
+<br />
+
+<form name="frmFiltro" method="post" action="<@ BaseLinkScript( "EMBA_R_AJUSTA_PRECO" )@>">  
+ <table width="500" border="0" cellpadding="2" cellspacing="0" style="border-collapse: collapse">
+  <tr>
+   <td align="right" style="font-size: 14px; color: #000080; font-family: Tahoma"> <b> Por EP </td>                                          
+   <td align="left">
+    <div id="divBusca">
+     <input type="text" name="pPOREP" class="txtBusca" placeholder="Digite o Código ou Título da EP..." /> 
+    </div>                                                                                                                                    
+   </td>
+  </tr>
+  
+  <tr>
+   <td align="right" style="font-size: 14px; color: #000080; font-family: Tahoma"> <b> Por Cliente </td>                                                                
+   <td align="left">
+    <div id="divCombo">
+     <select name="pPORGRUPO" class="txtCombo">                                  
+      <@vOPT_GRUPOS@>        
+     </select>
+    </div>                                                                                                                                    
+   </td> 
+  </tr>   
+  
+  <tr>
+   <td align="right" style="font-size: 14px; color: #000080; font-family: Tahoma"> <b> Por Endereço </td>                                                                
+    <td align="left">
+    <div id="divCombo">
+     <select name="pPORENDER" class="txtCombo">                                  
+      <@vOPT_ENDERS@>        
+     </select>
+    </div> 
+   </td> 
+  </tr>        
+            
+  <tr style="height: 50px">                                 
+   <td colspan="2" align="center"> <input type="submit" class="myButton" value="  Analisar Preços  " /> </td>  
+  </tr>
+ </table>   
+</form>
+
+</center>               
+</body>
+</html>                                                                                                                                                       

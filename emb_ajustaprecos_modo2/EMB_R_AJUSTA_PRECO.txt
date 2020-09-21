@@ -1,0 +1,142 @@
+<@
+{
+ /// SCRIPT DE CHAMADA ///
+ EMBA_F_AJUSTA_PRECO                                                                                                  
+ 
+ /// QUERYS UTILIZADAS ///
+ EMBA_EP_AJUSTA_PRECO
+ 
+ /// SCRIPTS UTILIZADOS /// 
+ RAJ_ESTILO_PG_TAHOMA
+ EMBA_BOTAO   
+ EMBA_CABECALHO
+ EMBA_U_AJUSTA_PRECO
+}                
+@> 
+<!DOCTYPE html>
+<html>
+<head lang="pt-br">
+ <meta http-equiv="X-UA-Compatible" content="IE=edge">
+ <@EXECUTA SCRIPT PRIVADA RAJ_ESTILO_PG_TAHOMA; END SCRIPT@>
+ <style> 
+  <@EXECUTA SCRIPT PRIVADA EMBA_BOTAO; END SCRIPT@>
+  A:link {text-decoration: none; color: Blue;}                                                                                           
+  A:visited {text-decoration: none; color: Blue;} 
+  .inpValor { background-color: transparent; font-size: 11px; border-top: 0px solid white; border-left: 0px solid white; border-right: 0px solid white; text-align: right; width: 64px }
+ </style>   
+ <script type="text/javascript"> 
+  function showAg() {document.getElementById("divLoad").style.display = 'block'; document.getElementById("divFrm").style.display = 'none';}
+  function goBack() {window.history.back();}
+ </script>
+</head>
+<body> 
+<center> 
+ 
+<div style="z-index: 3000; display: none; width: 100%;" id="divLoad">
+ <iframe src="http://www.rajweb.com.br/rajdesenv/aguarde.html" title="description" style="height: 280px; width: 100%; border: none"></iframe>
+</div>
+        
+<@                                                        
+  SET VARIAVEL ESTATICA TITULO = "RELATÓRIO - Ajuste de Preços";
+  EXECUTA SCRIPT PRIVADA EMBA_CABECALHO;
+    TITULO=TITULO;          
+    TAM=1000;  
+    SEMESTILO="S";  
+  END SCRIPT 
+
+
+  SET VARIAVEL ESTATICA vFILTROU_EP = IF( EXISTE( pPOREP ), pPOREP, "" );
+  SET VARIAVEL ESTATICA vFILTROU_GRUPO = IF( EXISTE( pPORGRUPO ), pPORGRUPO, "" );
+  SET VARIAVEL ESTATICA vFILTROU_ENDER = IF( EXISTE( pPORENDER ), pPORENDER, "" );
+
+  IF ( ( vFILTROU_EP + vFILTROU_GRUPO + vFILTROU_ENDER ) = "" ) THEN
+    " <br /><br /> <p><font face='Tahoma'><a href='javascript:window.history.go(-1)'>Favor utilizar ao menos um dos filtros disponíveis, clique aqui para Voltar</a></font></p> ";
+  ELSE 
+   
+    SET VARIAVEL ESTATICA vFILTRO_SQL = " ( O.CODMAT <> 0 ) "; 
+    IF ( vFILTROU_EP <> "" ) THEN              
+      SET VARIAVEL ESTATICA vFILTRO_SQL = vFILTRO_SQL +" And ( ( Upper( GM_CMAT.CODEXT ) Like :pCODEXT ) Or ( Upper( GM_CMAT.DESCR ) Like :pDESCR ) ) ";
+    ENDIF
+    IF ( vFILTROU_GRUPO <> "" ) THEN    
+      SET VARIAVEL ESTATICA vFILTRO_SQL = vFILTRO_SQL +" And ( O.CODFAVOREC="+ Str( IntDef( vFILTROU_GRUPO, 0 ) ) +" ) ";
+    ENDIF
+    IF ( vFILTROU_ENDER <> "" ) THEN    
+      SET VARIAVEL ESTATICA vFILTRO_SQL = vFILTRO_SQL +" And ( O.CODFAVOREC="+ Str( IntDef( Pal( vFILTROU_ENDER, 1, "_" ), 0 ) ) +" ) And ( O.SEQFAVFAT="+ Str( IntDef( Pal( vFILTROU_ENDER, 2, "_" ), 0 ) ) +" ) ";
+    ENDIF
+    
+    OPEN QOBJ EMBA_EP_AJUSTA_PRECO AS QREPS;     
+      FILTROA=vFILTRO_SQL;
+      FILTROA.pCODEXT="%"+ Copy( Upper( vFILTROU_EP ), 1, 18 ) +"%";
+      FILTROA.pDESCR="%"+ Copy( Upper( vFILTROU_EP ), 1, 68 ) +"%";
+    END QOBJ
+    
+    IF ( QREPS.RecordCount = 0 ) THEN                                                                                                                    
+      " <br /><br /> <p><font face='Tahoma'><a href='javascript:window.history.go(-1)'>Não localizamos nenhuma EP no filtro utilizado, clique aqui para Voltar</a></font></p> ";
+    ELSE
+@>  
+    <div id="divFrm" style="display: block; border: 0px solid white">
+    <form name="frmAjusta" method="post" action="<@ BaseLinkScript( "EMBA_U_AJUSTA_PRECO" )@>">
+    <table width="1070" border="0" frame="none" rules="none" cellpadding="3" cellspacing="0" style="empty-cells: show; border-collapse: collapse; border: 0px solid"> 
+     <tr style="height: 20px">                                 
+      <td colspan="10" align="left"> <button type="button" class="myButton" onclick="goBack()" style="height: 20px; width: 48px; padding: 0px">Voltar</button> </td>  
+     </tr>
+      
+     <tr bgcolor="#B0E2FF">
+      <th width="120" rowspan="2"> Código </th>
+      <th width="240" rowspan="2"> Descrição </th>   
+      <th width="120" rowspan="2"> Tipo de Estoque </th>   
+      <th width="210" colspan="3"> Atual </th>                
+      <th width="080" rowspan="2"> Último Reajuste </th>
+      <th width="300" colspan="3"> Atualizar para </th>    
+     </tr>           
+     
+     <tr bgcolor="#B0E2FF"> 
+      <th width="070"> 07 % </th> <th width="070"> 12 % </th> <th width="070"> 18 % </th>
+      <th width="100"> 07 % </th> <th width="100"> 12 % </th> <th width="100"> 18 % </th> 
+     </tr>  
+     
+     <@     
+       SET VARIAVEL ESTATICA vBGCOR = "A";
+       QREPS.First;
+       WHILE NOT QREPS.Eof DO                                                                                                              
+         SET VARIAVEL ESTATICA vBGCOR = IF( ( vBGCOR = "" ), "#FFFACD", "" );
+         SET VARIAVEL ESTATICA vINP18=Str( QREPS.Fields.CODMAT.AsInteger ) +"_"+ Str( QREPS.Fields.CODTPESTOQUE.AsInteger ) +"_";
+         SET VARIAVEL ESTATICA vINP07="07_"+ vINP18 + Str( QREPS.Fields.SEQINT07.AsInteger ) +"_"+ Str( QREPS.Fields.SEQINTDATA.AsInteger );
+         SET VARIAVEL ESTATICA vINP12="12_"+ vINP18 + Str( QREPS.Fields.SEQINT12.AsInteger ) +"_"+ Str( QREPS.Fields.SEQINTDATA.AsInteger );
+         SET VARIAVEL ESTATICA vINP18="18_"+ vINP18 + Str( QREPS.Fields.SEQINT18.AsInteger ) +"_"+ Str( QREPS.Fields.SEQINTDATA.AsInteger );                                            
+     @>                                            
+       <tr bgcolor="<@vBGCOR@>"> 
+        <td align="center"> <@ QREPS.Fields.CODEXT.AsString @> </td>
+        <td align="left"> <@ QREPS.Fields.DESCR.AsString @> </td>
+        <td align="center"> <@ QREPS.Fields.TPESTOQUE.AsString @> </td>
+        <td align="center"> <@ IF( QREPS.Fields.PRECO07.IsNull, "", Format( "###,###,##0.00", QREPS.Fields.PRECO07.AsFloat ) ) @> </td>    
+        <td align="center"> <@ IF( QREPS.Fields.PRECO12.IsNull, "", Format( "###,###,##0.00", QREPS.Fields.PRECO12.AsString ) ) @> </td>
+        <td align="center"> <@ IF( QREPS.Fields.PRECO18.IsNull, "", Format( "###,###,##0.00", QREPS.Fields.PRECO18.AsString ) ) @> </td>
+        <td align="center"> <@ IF( ( QREPS.Fields.ULTREAJUSTE.AsDateTime > 1 ), Format( "dd/MM/yyyy", QREPS.Fields.ULTREAJUSTE.AsDateTime ), "" ) @> </td>
+        
+        <td align="center"> <input type="number" class="inpValor" name="<@vINP07@>" id="<@vINP07@>" value="" onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode == 44 || event.charCode == 0"></input> </td>
+        <td align="center"> <input type="number" class="inpValor" name="<@vINP12@>" id="<@vINP12@>" value=""></input> </td>
+        <td align="center"> <input type="number" class="inpValor" name="<@vINP18@>" id="<@vINP18@>" value=""></input> </td>    
+       </tr>
+     <@
+       QREPS.Next;
+       ENDDO
+     @>
+     
+     <tr style="height: 50px">                                 
+      <td colspan="10" align="center"> <input type="submit" class="myButton" value="  Atualizar Preços  " onclick="showAg()" /> </td>  
+     </tr>
+    </table>
+    
+    </form>
+    </div>
+    
+<@  
+    ENDIF
+    { REF A CONDICAO ( QREPS.RecordCount = 0 ) }     
+    
+  ENDIF  
+  { REF A CONDICAO ( ( vFILTROU_EP + vFILTROU_GRUPO + vFILTROU_ENDER ) = "" ) }
+@>     
+</body>
+</html>

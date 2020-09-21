@@ -1,0 +1,237 @@
+<@
+{
+ /// SCRIPT DE CHAMADA ///
+ EMBA_R_AJUSTA_PRECO                                                                                                  
+ 
+ /// QUERYS UTILIZADAS ///
+ EMBA_EP_AJUSTA_PRECO
+ 
+ /// SCRIPTS UTILIZADOS /// 
+ RAJ_ESTILO_PG_TAHOMA
+ EMBA_BOTAO   
+ EMBA_CABECALHO
+ 
+ Exemplo 
+ 12_770_1_4_0 
+ 1. 12 - PERICMS 
+ 2. 770 - CODMAT 
+ 3. 1 - CODTPESTOQUE 
+ 4. 4 - SEQINT DO CAMPO CONFIG VALOR UNIT REF AO PERICMS ( 7, 12 ou 18 )
+ 5. 5 - SEQINT DO CAMPO CONFIG ULTIMO REAJUSTE 
+ CODCAMPO 18-PRECO 07% ICMS 
+ CODCAMPO 19-PRECO 12% ICMS 
+ CODCAMPO 20-PRECO 18% ICMS 
+ CODCAMPO 25-DATA ULTIMO REAJUSTE
+}
+                                        
+  SET VARIAVEL ESTATICA vDATAS_INSERIDAS = ""; { Armazena as Datas do Ultimo Reajuste por CODMAT+CODTPEST para evitar multiplos insert ou update }
+  SET VARIAVEL ESTATICA vERRO_USUARIO = ""; { Armazena os valores com problemas }                  
+  SET VARIAVEL ESTATICA vOCORREU_ERRO = ""; 
+  SET VARIAVEL ESTATICA vTABELA="EP_CCPSG";
+  SET VARIAVEL ESTATICA vTIPOLOG="Alteração";
+  SET VARIAVEL ESTATICA vPROCESSO="Rel. Modo 2 - Ajuste de Preços";                                       
+  SET VARIAVEL ESTATICA vSUCESSOS = 0;     
+  SET VARIAVEL ESTATICA vCOUNT = 0;     
+  SET VARIAVEL ESTATICA vMAXIMO = ALLVARIAVEIS.COUNT - 1;
+  SET VARIAVEL ESTATICA vQTDEUPT = 0;  
+  
+  Espera_Mostrar( "Avaliando ...", "S", 0, 0 );
+  WHILE ( vCOUNT < vMAXIMO ) DO                                   
+    SET VARIAVEL ESTATICA vCAMPO = AllTrim( AllVariaveis.GetName( vCOUNT ) );
+    SET VARIAVEL ESTATICA vVALOR = AllTrim( AllVariaveis.GetValue( vCOUNT ) );
+    IF ( ( vCAMPO <> "" ) AND ( vVALOR <> "" ) ) THEN   
+      SET VARIAVEL ESTATICA vQTDEUPT = vQTDEUPT + 1; 
+    ENDIF
+    SET VARIAVEL ESTATICA vCOUNT = vCOUNT + 1;  
+  ENDDO        
+  
+  Espera_Mostrar( "Atualizando Preços ...", "S", 0, vQTDEUPT );
+  SET VARIAVEL ESTATICA vCOUNT = 0;     
+  WHILE ( ( vCOUNT < vMAXIMO ) AND ( vOCORREU_ERRO = "" ) ) DO
+                                                                  
+    SET VARIAVEL ESTATICA vCAMPO = AllTrim( AllVariaveis.GetName( vCOUNT ) );
+    SET VARIAVEL ESTATICA vVALOR = AllTrim( AllVariaveis.GetValue( vCOUNT ) );
+     
+    IF ( ( vCAMPO <> "" ) AND ( vVALOR <> "" ) ) THEN
+      
+      SET VARIAVEL ESTATICA vTP_CAMPO = Pal( vCAMPO, 1, "_" );
+      IF ( vTP_CAMPO = "07" ) THEN    
+        SET VARIAVEL ESTATICA vCODCAMPO = 18;
+        SET VARIAVEL ESTATICA vLOG = "Preço ICMS 07 alterado para ";
+      ELSEIF ( vTP_CAMPO = "12" ) THEN
+        SET VARIAVEL ESTATICA vCODCAMPO = 19;                       
+        SET VARIAVEL ESTATICA vLOG = "Preço ICMS 12 alterado para ";
+      ELSEIF ( vTP_CAMPO = "18" ) THEN
+        SET VARIAVEL ESTATICA vCODCAMPO = 20;                       
+        SET VARIAVEL ESTATICA vLOG = "Preço ICMS 18 alterado para ";
+      ELSE
+        SET VARIAVEL ESTATICA vCODCAMPO = 0;                        
+        SET VARIAVEL ESTATICA vLOG = "";
+      ENDIF
+      SET VARIAVEL ESTATICA vCODMAT = IntDef( Pal( vCAMPO, 2, "_" ), 0 );
+      SET VARIAVEL ESTATICA vCODTPEST = IntDef( Pal( vCAMPO, 3, "_" ), 0 );
+      SET VARIAVEL ESTATICA vSEQINT = IntDef( Pal( vCAMPO, 4, "_" ), 0 );
+      SET VARIAVEL ESTATICA vTEM_DATA = IntDef( Pal( vCAMPO, 5, "_" ), 0 );
+      SET VARIAVEL ESTATICA vNOVO_PRECO = FloatDef( vVALOR, -123 );       
+      SET VARIAVEL ESTATICA vTMP_MATTPEST = "|"+ Str( vCODMAT ) +"_"+ Str( vCODTPEST ) +"|";  
+      SET VARIAVEL ESTATICA vWHERE_MATTPEST = "CODMAT="+ Str( vCODMAT ) +" And CODTPESTOQUE="+ Str( vCODTPEST );
+      SET VARIAVEL ESTATICA vLOG = vLOG +" "+ Format( "###,###,##0.0000", vNOVO_PRECO );
+                                                                              
+      IF ( vNOVO_PRECO = -123 ) THEN
+        SET VARIAVEL ESTATICA vERRO_USUARIO = vERRO_USUARIO +" <br /> "+ vCAMPO +"="+ vVALOR;                  
+  
+      ELSEIF ( ( vCODMAT > 0 ) AND ( vCODTPEST > 0 ) AND ( vCODCAMPO > 0 ) ) THEN
+      
+        IF ( vSEQINT > 0 ) THEN
+          EXECUTA OBJ TExecutaUpdInsDel As ObjUpt On PLUG;                                                                              
+            i_SQLCommand="Update EP_CCPSG Set VLCAMPO=:VLCAMPO, DTA=:DTA, USUA=:USUA Where "+ vWHERE_MATTPEST +" And SEQINT="+ Str( vSEQINT );
+            VLCAMPO=vNOVO_PRECO;
+            DTA=Now; 
+            USUA=Geral.CodUsuar;
+          END OBJ        
+        ELSE 
+          QOBJ_DINAMICA( "QRPROXSEQ", "Select Max( SEQINT ) ULTSEQINT From EP_CCPSG Where "+ vWHERE_MATTPEST );
+          SET VARIAVEL ESTATICA vSEQINT = QRPROXSEQ.Fields.ULTSEQINT.AsInteger + 1;        
+          EXECUTA OBJ TExecutaUpdInsDel As ObjUpt On PLUG;                                                                              
+            i_SQLCommand="Insert Into EP_CCPSG "+
+                         "( CODMAT, CODTPESTOQUE, SEQINT, SEQINTFP, SEQINTGP, ORDEM, CODCAMPO, CODGRUPO, SEQGRUPO, CFGGRUPO, EIXO_Y, EIXO_X, LARGURA, ALTURA, TPCAMPO, VLCAMPO, ATIVO, SOMATOT, DTI, USUI) Select First 1 "+
+                         " :CODMAT,:CODTPESTOQUE,:SEQINT,:SEQINTFP, SEQGRUPO,:ORDEM, CODCAMPO, CODGRUPO,:SEQGRUPO,:CFGGRUPO, EIXO_Y, EIXO_X, LARGURA, ALTURA,:TPCAMPO,:VLCAMPO, 'N',   'N',    :DTI,:USUI From CM_CCPGI Where CODGRUPO=5 And CODCAMPO="+ Str( vCODCAMPO );
+            CODMAT=vCODMAT;
+            CODTPESTOQUE=vCODTPEST;
+            SEQINT=vSEQINT;        
+            SEQINTFP=2;
+            ORDEM=vSEQINT;  
+            SEQGRUPO=2;
+            CFGGRUPO="X=20|Y=80|A=65|L=380|";
+            TPCAMPO="4";    
+            VLCAMPO=vNOVO_PRECO; 
+            DTI=Now; 
+            USUI=Geral.CodUsuar;
+          END OBJ
+          IF ( ObjUpt.o_Excecao <> "" ) THEN                     
+            SET VARIAVEL ESTATICA vOCORREU_ERRO = vOCORREU_ERRO + vCAMPO +" (v) Erro "+ ObjUpt.o_Excecao +" <br />";                                      
+          ENDIF
+          Sleep( 100 );  
+        ENDIF
+        
+        { Tem Que Inserir }
+        IF ( Pos( vTMP_MATTPEST, vDATAS_INSERIDAS ) > 0 ) THEN
+          SET VARIAVEL ESTATICA vTEM_DATA = -1; { Já atualizou }    
+        ENDIF
+                                     
+        SET VARIAVEL ESTATICA vDATAS_INSERIDAS = vDATAS_INSERIDAS + vTMP_MATTPEST;
+              
+        IF ( vTEM_DATA > 0 ) THEN                 
+          EXECUTA OBJ TExecutaUpdInsDel As ObjUpt On PLUG;                                                                              
+            i_SQLCommand="Update EP_CCPSG Set DTCAMPO=:DTCAMPO, DTA=:DTA, USUA=:USUA Where "+ vWHERE_MATTPEST +" And SEQINT="+ Str( vTEM_DATA );
+            DTCAMPO=Date;
+            DTA=Now; 
+            USUA=Geral.CodUsuar;
+          END OBJ 
+        ELSEIF ( vTEM_DATA = 0 ) THEN
+          QOBJ_DINAMICA( "QRPROXSEQ", "Select Max( SEQINT ) ULTSEQINT From EP_CCPSG Where "+ vWHERE_MATTPEST );
+          SET VARIAVEL ESTATICA vSEQINT = QRPROXSEQ.Fields.ULTSEQINT.AsInteger + 1;        
+          EXECUTA OBJ TExecutaUpdInsDel As ObjUpt On PLUG;                                                                              
+            i_SQLCommand="Insert Into EP_CCPSG "+                              
+                         "( CODMAT, CODTPESTOQUE, SEQINT, SEQINTFP, SEQINTGP, ORDEM, CODCAMPO, CODGRUPO, SEQGRUPO, CFGGRUPO, EIXO_Y, EIXO_X, LARGURA, ALTURA, TPCAMPO, DTCAMPO, ATIVO, SOMATOT, DTI, USUI) Select First 1 "+
+                         " :CODMAT,:CODTPESTOQUE,:SEQINT,:SEQINTFP, SEQGRUPO,:ORDEM, CODCAMPO, CODGRUPO,:SEQGRUPO,:CFGGRUPO, EIXO_Y, EIXO_X, LARGURA, ALTURA,:TPCAMPO,:DTCAMPO, 'N',   'N',    :DTI,:USUI From CM_CCPGI Where CODGRUPO=5 And CODCAMPO=25 ";
+            CODMAT=vCODMAT;
+            CODTPESTOQUE=vCODTPEST;
+            SEQINT=vSEQINT;
+            SEQINTFP=2;
+            ORDEM=vSEQINT;
+            SEQGRUPO=2;
+            CFGGRUPO="X=20|Y=80|A=65|L=380|";
+            TPCAMPO="D";    
+            DTCAMPO=Date; 
+            DTI=Now; 
+            USUI=Geral.CodUsuar;
+          END OBJ
+          IF ( ObjUpt.o_Excecao <> "" ) THEN                     
+            SET VARIAVEL ESTATICA vOCORREU_ERRO = vOCORREU_ERRO + vCAMPO +" (d) Erro "+ ObjUpt.o_Excecao +" <br />";                                      
+          ENDIF
+          Sleep( 100 );
+        ENDIF
+        
+        EXECUTA OBJ TCMGravaLogSistemas As ObjLog On PLUG;
+          CODLOG=0;
+          CODEMP=Geral.CodEmp;
+          SISTEMA="GM";    
+          TABELA=vTABELA;  
+          TIPOLOG=vTIPOLOG;  
+          PROCESSO=vPROCESSO; 
+          DESCRICAO=vLOG;
+          CODINT_1=vCODMAT;
+          CODINT_2=vCODTPEST;
+          CODINT_3=vSEQINT;
+          CODINT_4=0;
+          CODINT_5=0;
+          DTI=Now;
+          USUI=Geral.CodUsuar;
+          OBSLOG=vPROCESSO +"|"+ vLOG; 
+        END OBJ  
+        
+        SET VARIAVEL ESTATICA vSUCESSOS = vSUCESSOS + 1;
+        
+      ENDIF   
+      Espera_Somar( 1 );
+      
+    ENDIF
+      
+    SET VARIAVEL ESTATICA vCOUNT = vCOUNT + 1;  
+  ENDDO   
+     
+  IF ( vERRO_USUARIO <> "" ) THEN
+    EXECUTA OBJ TCMGravaLogGeral As ObjLog On PLUG;
+      o_CodLog=0;
+      i_TipoLog="3";  
+      i_Descricao="REL MODO 2 EMBA_U_AJUSTA_PRECO - Erros Usuario";
+      i_InfoBD=vERRO_USUARIO;
+      i_InfoAP="";
+      i_InfoDe="";
+      i_InfoPara="";
+      i_CodUsuar=Geral.CodUsuar;
+    END OBJ 
+  ENDIF 
+  
+  IF ( vOCORREU_ERRO <> "" ) THEN              
+    EXECUTA OBJ TCMGravaLogGeral As ObjLog On PLUG;
+      o_CodLog=0;
+      i_TipoLog="3"; 
+      i_Descricao="REL MODO 2 EMBA_U_AJUSTA_PRECO - Erros Internos";
+      i_InfoBD=vOCORREU_ERRO;
+      i_InfoAP="";
+      i_InfoDe="";
+      i_InfoPara="";
+      i_CodUsuar=Geral.CodUsuar;
+    END OBJ   
+  ENDIF 
+  
+  Espera_Ocultar( "" );
+@>
+<!DOCTYPE html>
+<html>
+<head lang="pt-br">
+ <meta http-equiv="X-UA-Compatible" content="IE=edge">
+ <@EXECUTA SCRIPT PRIVADA RAJ_ESTILO_PG_TAHOMA; END SCRIPT@>
+ <style> 
+  <@EXECUTA SCRIPT PRIVADA EMBA_BOTAO; END SCRIPT@>
+  A:link {text-decoration: none; color: Blue;}                                                                                           
+  A:visited {text-decoration: none; color: Blue;} 
+  .inpValor { background-color: transparent; font-size: 11px; border-top: 0px solid white; border-left: 0px solid white; border-right: 0px solid white; text-align: right; width: 64px }
+ </style>
+</head>                                                   
+<body> 
+<center>
+<@                                                        
+  SET VARIAVEL ESTATICA TITULO = "RELATÓRIO - Preços Atualizados";
+  EXECUTA SCRIPT PRIVADA EMBA_CABECALHO;
+    TITULO=TITULO;          
+    TAM=1000;  
+    SEMESTILO="S";  
+  END SCRIPT
+@>  
+ <br /><br /> <p><font face="Tahoma"><a href="javascript:window.history.go(-2)"> <@ Format( "###,###,##0", vSUCESSOS ) @> Preços Atualizados com Sucesso !! <br /><br />Clique aqui para retornar.</a></font></p> 
+</center>
+</body>
+</html>
